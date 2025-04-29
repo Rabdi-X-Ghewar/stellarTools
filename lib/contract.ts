@@ -129,9 +129,13 @@ import {
         txResponse = await server.getTransaction(txResult.hash);
         retries++;
       }
+
+      if (txResponse.status === "NOT_FOUND") {
+        return { hash: txResult.hash, status: "PENDING", message: "Transaction is still pending. Please check status later using this hash." };
+      }
   
       if (txResponse.status !== "SUCCESS") {
-        console.error(`Transaction failed for ${functName} with status: ${txResponse.status}, JSON.stringify(txResponse, null, 2)`);
+        console.error(`Transaction failed for ${functName} with status: ${txResponse.status}`, JSON.stringify(txResponse, null, 2));
         throw new Error(`Transaction failed with status: ${txResponse.status}`);
       }
   

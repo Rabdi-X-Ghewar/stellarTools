@@ -1,6 +1,6 @@
 {
   "name": "stellartools",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "A set of Stellar blockchain tools by Daiwik Maheshwari.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

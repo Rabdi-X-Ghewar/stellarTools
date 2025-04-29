@@ -1,6 +1,6 @@
 {
   "name": "stellartools",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "description": "A set of Stellar blockchain tools by Daiwik Maheshwari.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,7 +8,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/stellarTools.git"
+    "url": "git+https://github.com/Rabdi-X-Ghewar/stellarTools.git"
   },
   "files": [
     "dist",
@@ -16,7 +16,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "postbuild": "copyfiles index.d.ts dist/"
   },
   "dependencies": {
     "@allbridge/bridge-core-sdk": "^3.22.0",
@@ -28,14 +29,15 @@
     "typescript": "^5.8.3"
   },
   "devDependencies": {
-    "@types/big.js": "^6.2.2"
+    "@types/big.js": "^6.2.2",
+    "copyfiles": "^2.4.1"
   },
   "directories": {
     "lib": "lib"
   },
   "keywords": [],
   "bugs": {
-    "url": "https://github.com/yourusername/stellarTools/issues"
+    "url": "https://github.com/Rabdi-X-Ghewar/stellarTools/issues"
   },
-  "homepage": "https://github.com/yourusername/stellarTools#readme"
+  "homepage": "https://github.com/Rabdi-X-Ghewar/stellarTools#readme"
 }

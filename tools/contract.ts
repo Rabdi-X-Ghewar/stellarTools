@@ -53,15 +53,15 @@ export const StellarLiquidityContractTool = new DynamicStructuredTool({
           if (!to || !desiredA || !minA || !desiredB || !minB) {
             throw new Error("to, desiredA, minA, desiredB, and minB are required for deposit");
           }
-          await deposit(STELLAR_PUBLIC_KEY, to, desiredA, minA, desiredB, minB);
-          return `Deposited successfully to ${to}.`;
+          const result = await deposit(STELLAR_PUBLIC_KEY, to, desiredA, minA, desiredB, minB);
+          return result ??`Deposited successfully to ${to}.`;
         }
         case "swap": {
           if (!to || buyA === undefined || !out || !inMax) {
             throw new Error("to, buyA, out, and inMax are required for swap");
           }
-          await swap(STELLAR_PUBLIC_KEY, to, buyA, out, inMax);
-          return `Swapped successfully to ${to}.`;
+          const result=await swap(STELLAR_PUBLIC_KEY, to, buyA, out, inMax);
+          return result ?? `Swapped successfully to ${to}.`;
         }
         case "withdraw": {
           if (!to || !shareAmount || !minA || !minB) {

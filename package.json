@@ -1,0 +1,41 @@
+{
+  "name": "stellartools",
+  "version": "1.0.0",
+  "description": "A set of Stellar blockchain tools by Daiwik Maheshwari.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "Daiwik Maheshwari",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/stellarTools.git"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@allbridge/bridge-core-sdk": "^3.22.0",
+    "@langchain/core": "^0.3.49",
+    "@stellar/stellar-sdk": "^13.3.0",
+    "big.js": "^7.0.1",
+    "dotenv": "^16.4.7",
+    "stellar-sdk": "^13.3.0",
+    "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "@types/big.js": "^6.2.2"
+  },
+  "directories": {
+    "lib": "lib"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/yourusername/stellarTools/issues"
+  },
+  "homepage": "https://github.com/yourusername/stellarTools#readme"
+}

@@ -8,7 +8,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/stellarTools.git"
+    "url": "git+https://github.com/Rabdi-X-Ghewar/stellarTools.git"
   },
   "files": [
     "dist",
@@ -35,7 +35,7 @@
   },
   "keywords": [],
   "bugs": {
-    "url": "https://github.com/yourusername/stellarTools/issues"
+    "url": "https://github.com/Rabdi-X-Ghewar/stellarTools/issues"
   },
-  "homepage": "https://github.com/yourusername/stellarTools#readme"
+  "homepage": "https://github.com/Rabdi-X-Ghewar/stellarTools#readme"
 }

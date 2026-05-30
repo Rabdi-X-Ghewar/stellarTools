@@ -359,7 +359,11 @@ export async function fundTestnetAccount(
     if (!response.ok) {
       const body = await response.text();
       // Friendbot returns a specific error when already funded
-      if (body.includes("op_already_exists")) {
+      if (
+        body.includes("op_already_exists") ||
+        body.includes("createAccountAlreadyExist") ||
+        body.includes("account already funded")
+      ) {
         return {
           success: false,
           message: `Account ${publicKey} has already been funded on testnet.`,

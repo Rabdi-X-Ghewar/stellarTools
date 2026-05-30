@@ -1,10 +1,14 @@
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
-import { getShareId, deposit, swap } from "../lib/contract";
+import { getShareId, deposit, swap, withdraw, getReserves } from "../lib/contract";
 
 const STELLAR_NETWORK = process.env.STELLAR_NETWORK || "testnet";
-const SOROBAN_RPC_URL = process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org";
+const SOROBAN_RPC_URL = process.env.SOROBAN_RPC_URL || (STELLAR_NETWORK === "mainnet" ? "https://soroban.stellar.org" : "https://soroban-testnet.stellar.org");
 const STELLAR_PUBLIC_KEY = process.env.STELLAR_PUBLIC_KEY || "";
+
+if (!STELLAR_PUBLIC_KEY) {
+  throw new Error("STELLAR_PUBLIC_KEY is not configured. Please set it in environment variables.");
+}
 
 export const StellarLiquidityContractTool = new DynamicStructuredTool({
   name: "stellar_liquidity_contract_tool",
@@ -62,6 +66,17 @@ export const StellarLiquidityContractTool = new DynamicStructuredTool({
           }
           const result = await swap(STELLAR_PUBLIC_KEY, to, buyA, out, inMax, config);
           return result ?? `Swap executed successfully.`;
+        }
+        case "withdraw": {
+          if (!to || !shareAmount || !minA || !minB) {
+            throw new Error("to, shareAmount, minA, and minB are required for withdraw");
+          }
+          const result = await withdraw(STELLAR_PUBLIC_KEY, to, shareAmount, minA, minB, config);
+          return result ?? `Withdrawn successfully to ${to}.`;
+        }
+        case "get_reserves": {
+          const result = await getReserves(config);
+          return result ? `Reserves: ${JSON.stringify(result)}` : "No reserves found.";
         }
         default:
           throw new Error("Unsupported action");

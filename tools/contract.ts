@@ -76,7 +76,7 @@ export const StellarLiquidityContractTool = new DynamicStructuredTool({
         }
         case "get_reserves": {
           const result = await getReserves(config);
-          return result ? `Reserves: ${JSON.stringify(result)}` : "No reserves found.";
+          return result ? `Reserves: ${JSON.stringify(result, (_, value) => typeof value === "bigint" ? value.toString() : value)}` : "No reserves found.";
         }
         default:
           throw new Error("Unsupported action");

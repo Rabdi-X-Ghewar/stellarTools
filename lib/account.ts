@@ -1,4 +1,5 @@
 import { Horizon, StrKey } from "@stellar/stellar-sdk";
+import { getHorizonUrl, createServer, HorizonConfig } from "../utils/horizon";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -77,18 +78,7 @@ export interface OperationRecord {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function getHorizonUrl(config: AccountClientConfig): string {
-  return (
-    config.horizonUrl ??
-    (config.network === "mainnet"
-      ? "https://horizon.stellar.org"
-      : "https://horizon-testnet.stellar.org")
-  );
-}
 
-function createServer(config: AccountClientConfig): Horizon.Server {
-  return new Horizon.Server(getHorizonUrl(config));
-}
 
 function validatePublicKey(publicKey: string): void {
   if (!publicKey || !StrKey.isValidEd25519PublicKey(publicKey)) {
@@ -369,7 +359,7 @@ export async function fundTestnetAccount(
     if (!response.ok) {
       const body = await response.text();
       // Friendbot returns a specific error when already funded
-      if (body.includes("createAccountAlreadyExist")) {
+      if (body.includes("op_already_exists")) {
         return {
           success: false,
           message: `Account ${publicKey} has already been funded on testnet.`,

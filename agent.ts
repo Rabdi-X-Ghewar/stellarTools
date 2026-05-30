@@ -47,16 +47,7 @@ import {
 } from "./lib/claimF";
 import { bridgeTokenTool } from "./tools/bridge";
 import { stellarGetBalanceTool, stellarGetAccountInfoTool } from "./tools/stellar";
-import {
-  Horizon,
-  Keypair,
-  StrKey,
-  Asset,
-  TransactionBuilder,
-  Operation,
-  Networks,
-  BASE_FEE
-} from "@stellar/stellar-sdk";
+import { Keypair, StrKey, Horizon, Networks, TransactionBuilder, Operation, Asset, Memo } from "@stellar/stellar-sdk";
 
 const { Server } = Horizon;
 
@@ -225,7 +216,7 @@ export class AgentClient {
       .setTimeout(300);
 
     if (params.memo) {
-      builder.addMemo(Horizon.HorizonApi ? undefined as any : undefined);
+      builder.addMemo(Memo.text(params.memo));
     }
 
     const transaction = builder.build();
@@ -570,6 +561,7 @@ export class AgentClient {
       rewardRate: number;
       contractAddress?: string;
     }): Promise<string> => {
+      if (!this.publicKey || !StrKey.isValidEd25519PublicKey(this.publicKey)) throw new Error("Valid public key is required for staking operations.");
       return await stakingInitialize(
         this.publicKey,
         params.tokenAddress,
@@ -588,6 +580,7 @@ export class AgentClient {
       amount: number;
       contractAddress?: string;
     }): Promise<string> => {
+      if (!this.publicKey || !StrKey.isValidEd25519PublicKey(this.publicKey)) throw new Error("Valid public key is required for staking operations.");
       return await stakingStake(
         this.publicKey,
         params.amount,
@@ -605,6 +598,7 @@ export class AgentClient {
       amount: number;
       contractAddress?: string;
     }): Promise<string> => {
+      if (!this.publicKey || !StrKey.isValidEd25519PublicKey(this.publicKey)) throw new Error("Valid public key is required for staking operations.");
       return await stakingUnstake(
         this.publicKey,
         params.amount,
@@ -620,6 +614,7 @@ export class AgentClient {
     claimRewards: async (params?: {
       contractAddress?: string;
     }): Promise<string> => {
+      if (!this.publicKey || !StrKey.isValidEd25519PublicKey(this.publicKey)) throw new Error("Valid public key is required for staking operations.");
       return await stakingClaimRewards(
         this.publicKey,
         { network: this.network, rpcUrl: this.getSorobanRpcUrl(), contractAddress: params?.contractAddress }
@@ -635,7 +630,8 @@ export class AgentClient {
     getStake: async (params: {
       userAddress: string;
       contractAddress?: string;
-    }): Promise<any> => {
+    }): Promise<bigint> => {
+      if (!this.publicKey || !StrKey.isValidEd25519PublicKey(this.publicKey)) throw new Error("Valid public key is required for staking operations.");
       return await stakingGetStake(
         this.publicKey,
         params.userAddress,
@@ -655,10 +651,12 @@ export class AgentClient {
      *
      * @param publicKey - Optional public key to query (defaults to configured publicKey)
      */
-    list: async (publicKey?: string): Promise<Array<{ id: string; asset: string; amount: string; sponsor: string }>> => {
-      const key = publicKey ?? this.publicKey;
-      if (!key) throw new Error("No public key provided or configured");
-      return await listClaimableBalances(key);
+    list: async (publicKey?: string) => {
+      const targetPublicKey = publicKey || this.publicKey;
+      if (!targetPublicKey) {
+        throw new Error("No public key provided or configured");
+      }
+      return await listClaimableBalances(targetPublicKey, { network: this.network, horizonUrl: this.rpcUrl });
     },
 
     /**
@@ -668,10 +666,12 @@ export class AgentClient {
      * @param balanceId - Optional specific balance ID to claim. If omitted, claims all.
      * @param publicKey - Optional public key (defaults to configured publicKey)
      */
-    claim: async (params?: { balanceId?: string; publicKey?: string }) => {
-      const key = params?.publicKey ?? this.publicKey;
-      if (!key) throw new Error("No public key provided or configured");
-      return await claimBalance(key, params?.balanceId);
+    claim: async (params: { balanceId?: string; publicKey?: string } = {}) => {
+      const targetPublicKey = params.publicKey || this.publicKey;
+      if (!targetPublicKey) {
+        throw new Error("No public key provided or configured");
+      }
+      return await claimBalance(targetPublicKey, params.balanceId, { network: this.network, horizonUrl: this.rpcUrl });
     },
   };
 

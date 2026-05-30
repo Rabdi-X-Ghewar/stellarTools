@@ -1,24 +1,25 @@
 import { Horizon, TransactionBuilder, Operation, Networks } from "@stellar/stellar-sdk";
+import { createServer, HorizonConfig } from "../utils/horizon";
 
-function getServer() {
-  return new Horizon.Server(process.env.HORIZON_URL || "https://horizon-testnet.stellar.org");
-}
-
-export async function listClaimableBalances(publicKey: string) {
-  const server = getServer();
+export async function listClaimableBalances(publicKey: string, config: HorizonConfig) {
+  const server = createServer(config);
   let response = await server.claimableBalances().claimant(publicKey).call();
   let allBalances = [...response.records];
 
   // Sayfalama (Pagination) döngüsü: Tüm kayıtları çeker
   while (response.records.length > 0) {
+    if (!response.next) break;
     try {
       response = await response.next();
-      if (response.records.length > 0) {
+      if (response.records && response.records.length > 0) {
         allBalances.push(...response.records);
       }
-    } catch (e) {
-      // Daha fazla sayfa yoksa döngüden çık
-      break;
+    } catch (e: any) {
+      // Sadece 404 veya bulanamadı hatalarını görmezden gel, diğerlerini fırlat
+      if (e?.response?.status === 404 || e?.message?.includes('not found')) {
+        break;
+      }
+      throw new Error(`Failed to fetch next page of claimable balances: ${e.message || e}`);
     }
   }
 
@@ -30,8 +31,8 @@ export async function listClaimableBalances(publicKey: string) {
   }));
 }
 
-export async function claimBalance(publicKey: string, balanceId?: string) {
-  const server = getServer();
+export async function claimBalance(publicKey: string, balanceId: string | undefined, config: HorizonConfig) {
+  const server = createServer(config);
   const account = await server.loadAccount(publicKey);
 
   // Hata veren 'fee' kısmı string'e çevrildi ve yapı düzeltildi
@@ -39,22 +40,20 @@ export async function claimBalance(publicKey: string, balanceId?: string) {
 
   const transaction = new TransactionBuilder(account, {
     fee: baseFee.toString(), // Sayı olan fee değerini string yaparak hatayı çözdük
-    networkPassphrase: process.env.STELLAR_NETWORK === "PUBLIC" ? Networks.PUBLIC : Networks.TESTNET,
+    networkPassphrase: config.network === "mainnet" ? Networks.PUBLIC : Networks.TESTNET,
   });
 
   if (balanceId) {
     transaction.addOperation(Operation.claimClaimableBalance({ balanceId }));
   } else {
-    const balances = await listClaimableBalances(publicKey);
+    const balances = await listClaimableBalances(publicKey, config);
     if (balances.length === 0) throw new Error("No claimable balances found.");
 
-    /**
-     * KRİTİK DÜZELTME: Stellar ağı bir işlemde en fazla 100 operasyona izin verir.
-     * Güvenlik amacıyla tek seferde en fazla 50 bakiyeyi çekiyoruz (slice(0, 50)).
-     */
-    const limitedBalances = balances.slice(0, 50);
+    if (balances.length > 100) {
+      throw new Error("Too many claimable balances for a single transaction (max 100). Please provide a specific balanceId or claim them in batches.");
+    }
 
-    limitedBalances.forEach((b: any) => {
+    balances.forEach((b: any) => {
       transaction.addOperation(Operation.claimClaimableBalance({ balanceId: b.id }));
     });
   }

@@ -1,3 +1,11 @@
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from "zod";
+import { getShareId, deposit, swap } from "../lib/contract";
+
+const STELLAR_NETWORK = process.env.STELLAR_NETWORK || "testnet";
+const SOROBAN_RPC_URL = process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org";
+const STELLAR_PUBLIC_KEY = process.env.STELLAR_PUBLIC_KEY || "";
+
 export const StellarLiquidityContractTool = new DynamicStructuredTool({
   name: "stellar_liquidity_contract_tool",
   description: "Interact with a liquidity contract on Stellar Soroban: getShareId, deposit, swap, withdraw, getReserves.",
@@ -52,8 +60,8 @@ export const StellarLiquidityContractTool = new DynamicStructuredTool({
           if (!to || buyA === undefined || !out || !inMax) {
             throw new Error("to, buyA, out, and inMax are required for swap");
           }
-          // Diğer case'ler buraya devam edecek...
-          return "Swap executed (Logic needs to be completed based on your lib)";
+          const result = await swap(STELLAR_PUBLIC_KEY, to, buyA, out, inMax, config);
+          return result ?? `Swap executed successfully.`;
         }
         default:
           throw new Error("Unsupported action");

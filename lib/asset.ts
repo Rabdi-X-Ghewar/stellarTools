@@ -1,4 +1,5 @@
 import { Horizon, StrKey } from "@stellar/stellar-sdk";
+import { getHorizonUrl, createServer, HorizonConfig } from "../utils/horizon";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -67,18 +68,7 @@ export type StellarAssetInput =
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function getHorizonUrl(config: AssetClientConfig): string {
-  return (
-    config.horizonUrl ??
-    (config.network === "mainnet"
-      ? "https://horizon.stellar.org"
-      : "https://horizon-testnet.stellar.org")
-  );
-}
 
-function createServer(config: AssetClientConfig): Horizon.Server {
-  return new Horizon.Server(getHorizonUrl(config));
-}
 
 function validateAssetInput(asset: StellarAssetInput): void {
   if ("type" in asset) {
@@ -92,6 +82,10 @@ function validateAssetInput(asset: StellarAssetInput): void {
     throw new Error(
       `Asset code must be between 1 and 12 characters, got: "${asset.code || ""}"`
     );
+  }
+
+  if (!/^[a-zA-Z0-9]+$/.test(asset.code)) {
+    throw new Error(`Asset code must contain only alphanumeric characters, got: "${asset.code}"`);
   }
 
   if (!asset.issuer || !StrKey.isValidEd25519PublicKey(asset.issuer)) {

@@ -86,75 +86,49 @@ import {
       }
   
       if (txResponse.status !== "SUCCESS") {
-        return `Transaction failed with status: ${txResponse.status}`;
+        throw new Error(`Transaction failed with status: ${txResponse.status}`);
       }
   
   
       return null; // No return value (e.g., for void functions)
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      return `Error in contract interaction (${functName}): ${errorMessage}`;
+      throw new Error(`Error in contract interaction (${functName}): ${errorMessage}`);
     }
   };
   
   // Contract interaction functions
   async function initialize(caller: string, tokenAddress: string, rewardRate: number, config?: SorobanContractConfig) {
-    try {
-      const tokenScVal = addressToScVal(tokenAddress);
-      const rewardRateScVal = numberToI128(rewardRate);
-      await contractInt(caller, "initialize", [tokenScVal, rewardRateScVal], config);
-      return "Contract initialized successfully";
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      return errorMessage;
-    }
+    const tokenScVal = addressToScVal(tokenAddress);
+    const rewardRateScVal = numberToI128(rewardRate);
+    await contractInt(caller, "initialize", [tokenScVal, rewardRateScVal], config);
+    return "Contract initialized successfully";
   }
   
   async function stake(caller: string, amount: number, config?: SorobanContractConfig) {
-    try {
-      const userScVal = addressToScVal(caller);
-      const amountScVal = numberToI128(amount);
-      await contractInt(caller, "stake", [userScVal, amountScVal], config);
-      return `Staked ${amount} successfully`;
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      return errorMessage;
-    }
+    const userScVal = addressToScVal(caller);
+    const amountScVal = numberToI128(amount);
+    await contractInt(caller, "stake", [userScVal, amountScVal], config);
+    return `Staked ${amount} successfully`;
   }
   
   async function unstake(caller: string, amount: number, config?: SorobanContractConfig) {
-    try {
-      const userScVal = addressToScVal(caller);
-      const amountScVal = numberToI128(amount);
-      await contractInt(caller, "unstake", [userScVal, amountScVal], config);
-      return `Unstaked ${amount} successfully`;
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      return errorMessage;
-    }
+    const userScVal = addressToScVal(caller);
+    const amountScVal = numberToI128(amount);
+    await contractInt(caller, "unstake", [userScVal, amountScVal], config);
+    return `Unstaked ${amount} successfully`;
   }
   
   async function claimRewards(caller: string, config?: SorobanContractConfig) {
-    try {
-      const userScVal = addressToScVal(caller);
-      await contractInt(caller, "claim_rewards", userScVal, config);
-      return "Rewards claimed successfully";
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      return errorMessage;
-    }
+    const userScVal = addressToScVal(caller);
+    await contractInt(caller, "claim_rewards", userScVal, config);
+    return "Rewards claimed successfully";
   }
   
   async function getStake(caller: string, userAddress: string, config?: SorobanContractConfig) {
-    try {
-      const userScVal = addressToScVal(userAddress);
-      const result = await contractInt(caller, "get_stake", userScVal, config);
-      return `Stake for ${userAddress}: ${result}`;
-      return result; // Returns i128 as a BigInt
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      return errorMessage; // Returns error message as a string
-    }
+    const userScVal = addressToScVal(userAddress);
+    const result = await contractInt(caller, "get_stake", userScVal, config);
+    return result;
   }
   
   export { initialize, stake, unstake, claimRewards, getStake };

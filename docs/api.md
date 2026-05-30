@@ -309,6 +309,105 @@ console.log(`Share Token ID: ${shareId}`);
 
 ---
 
+## 💸 sendPayment()
+
+Sends XLM or any Stellar asset from the configured account to a recipient.
+
+#### Parameters
+
+```typescript
+{
+  recipient: string; // Destination public key
+  amount: string;    // Amount to send
+  asset?: {          // Optional: Send custom asset (defaults to native XLM)
+    code: string;
+    issuer: string;
+  };
+  memo?: string;     // Optional: Transaction memo
+}
+```
+
+#### Example
+
+```typescript
+await agent.sendPayment({
+  recipient: "GXXXX...",
+  amount: "10",
+  memo: "Payment for services"
+});
+```
+
+---
+
+## 🔍 account Namespace
+
+Read-only access to Stellar account data.
+
+### `account.getInfo(publicKey?)`
+Gets comprehensive account information (balances, signers, thresholds, flags).
+
+### `account.getBalances(publicKey?)`
+Gets account balance summary.
+
+### `account.getTransactions(publicKey?, limit?, order?)`
+Gets recent transaction history for an account.
+
+### `account.getOperations(publicKey?, limit?, order?)`
+Gets recent operation history for an account.
+
+### `account.fundTestnet(publicKey?)`
+Funds an account with 10,000 test XLM using Friendbot (testnet only).
+
+---
+
+## 📈 asset Namespace
+
+Read-only access to Stellar asset and market data.
+
+### `asset.getDetails(assetCode, assetIssuer)`
+Looks up details about a Stellar asset.
+
+### `asset.getOrderbook(baseAsset, counterAsset, limit?)`
+Fetches the current SDEX orderbook for a trading pair.
+
+### `asset.getTrades(baseAsset, counterAsset, limit?, order?)`
+Fetches recent trades for a trading pair on the SDEX.
+
+---
+
+## 🥩 staking Namespace
+
+Operations for interacting with Soroban staking smart contracts.
+
+### `staking.initialize({ tokenAddress, rewardRate, contractAddress? })`
+Initializes a staking contract.
+
+### `staking.stake({ amount, contractAddress? })`
+Stakes tokens in the staking contract.
+
+### `staking.unstake({ amount, contractAddress? })`
+Unstakes tokens from the staking contract.
+
+### `staking.claimRewards({ contractAddress? })`
+Claims staking rewards.
+
+### `staking.getStake({ userAddress, contractAddress? })`
+Gets the staked amount for a specific user.
+
+---
+
+## 📥 claims Namespace
+
+Discover and claim pending assets (claimable balances) on the Stellar network.
+
+### `claims.list(publicKey?)`
+Lists all pending claimable balances for the configured account.
+
+### `claims.claim({ balanceId?, publicKey? })`
+Builds a claim transaction for one or all claimable balances. Returns an unsigned transaction.
+
+---
+
 ## 🚨 Error Handling
 
 All methods may throw errors in the following scenarios:

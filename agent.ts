@@ -14,10 +14,43 @@ import {
   type SwapBestRouteParams,
   type SwapBestRouteResult,
 } from "./lib/dex";
+import {
+  getAccountInfo,
+  getBalances,
+  getTransactionHistory,
+  getOperationHistory,
+  fundTestnetAccount,
+  type AccountInfo,
+  type AccountBalance,
+  type TransactionRecord,
+  type OperationRecord,
+} from "./lib/account";
+import {
+  getAssetDetails,
+  getOrderbook,
+  getTrades,
+  type AssetDetails,
+  type OrderbookSummary,
+  type TradeRecord,
+  type StellarAssetInput as AssetStellarAssetInput,
+} from "./lib/asset";
+import {
+  initialize as stakingInitialize,
+  stake as stakingStake,
+  unstake as stakingUnstake,
+  claimRewards as stakingClaimRewards,
+  getStake as stakingGetStake,
+} from "./lib/stakeF";
+import {
+  listClaimableBalances,
+  claimBalance,
+} from "./lib/claimF";
 import { bridgeTokenTool } from "./tools/bridge";
+import { stellarGetBalanceTool, stellarGetAccountInfoTool } from "./tools/stellar";
 import {
   Horizon,
   Keypair,
+  StrKey,
   Asset,
   TransactionBuilder,
   Operation,
@@ -66,6 +99,13 @@ export type {
   RouteQuote,
   SwapBestRouteParams,
   SwapBestRouteResult,
+  AccountInfo,
+  AccountBalance,
+  TransactionRecord,
+  OperationRecord,
+  AssetDetails,
+  OrderbookSummary,
+  TradeRecord,
 };
 
 export class AgentClient {
@@ -124,6 +164,120 @@ export class AgentClient {
       params.inMax,
       { network: this.network, rpcUrl: this.rpcUrl, contractAddress: params.contractAddress }
     );
+  }
+
+  /**
+   * Send a payment on the Stellar network.
+   *
+   * Sends XLM or any Stellar asset from the configured account to a recipient.
+   * Requires STELLAR_PRIVATE_KEY to be set in the environment.
+   *
+   * @param params Payment parameters
+   * @returns Transaction hash of the payment
+   */
+  async sendPayment(params: {
+    recipient: string;
+    amount: string;
+    asset?: { code: string; issuer: string };
+    memo?: string;
+  }): Promise<{ hash: string }> {
+    if (!this.publicKey) {
+      throw new Error("Public key is required to send payments.");
+    }
+
+    if (!StrKey.isValidEd25519PublicKey(params.recipient)) {
+      throw new Error("Invalid recipient address.");
+    }
+
+    if (!params.amount || isNaN(Number(params.amount)) || Number(params.amount) <= 0) {
+      throw new Error("Amount must be a positive number.");
+    }
+
+    const privateKey = process.env.STELLAR_PRIVATE_KEY;
+    if (!privateKey || !StrKey.isValidEd25519SecretSeed(privateKey)) {
+      throw new Error("Invalid or missing STELLAR_PRIVATE_KEY in environment.");
+    }
+
+    const keypair = Keypair.fromSecret(privateKey);
+    if (keypair.publicKey() !== this.publicKey) {
+      throw new Error("STELLAR_PRIVATE_KEY does not match the configured publicKey.");
+    }
+
+    const server = new Horizon.Server(this.rpcUrl);
+    const account = await server.loadAccount(this.publicKey);
+    const networkPassphrase = this.network === "mainnet" ? Networks.PUBLIC : Networks.TESTNET;
+
+    const paymentAsset = params.asset
+      ? new Asset(params.asset.code, params.asset.issuer)
+      : Asset.native();
+
+    const builder = new TransactionBuilder(account, {
+      fee: BASE_FEE,
+      networkPassphrase,
+    })
+      .addOperation(
+        Operation.payment({
+          destination: params.recipient,
+          asset: paymentAsset,
+          amount: params.amount,
+        })
+      )
+      .setTimeout(300);
+
+    if (params.memo) {
+      builder.addMemo(Horizon.HorizonApi ? undefined as any : undefined);
+    }
+
+    const transaction = builder.build();
+    transaction.sign(keypair);
+    const response = await server.submitTransaction(transaction);
+
+    return { hash: response.hash };
+  }
+
+  /**
+   * Get the balance of a Stellar account.
+   * @param publicKey Optional Stellar public key (defaults to client's publicKey)
+   */
+  async getBalance(publicKey?: string) {
+    const targetPublicKey = publicKey || this.publicKey;
+    if (!targetPublicKey) {
+      throw new Error("Public key is required to fetch balance.");
+    }
+
+    const result = await stellarGetBalanceTool.func({
+      publicKey: targetPublicKey,
+      network: this.network,
+    });
+
+    try {
+      return JSON.parse(result);
+    } catch (e) {
+      // If it's not JSON (e.g. error message), return as is
+      return result;
+    }
+  }
+
+  /**
+   * Get full details of a Stellar account.
+   * @param publicKey Optional Stellar public key (defaults to client's publicKey)
+   */
+  async getAccountInfo(publicKey?: string) {
+    const targetPublicKey = publicKey || this.publicKey;
+    if (!targetPublicKey) {
+      throw new Error("Public key is required to fetch account info.");
+    }
+
+    const result = await stellarGetAccountInfoTool.func({
+      publicKey: targetPublicKey,
+      network: this.network,
+    });
+
+    try {
+      return JSON.parse(result);
+    } catch (e) {
+      return result;
+    }
   }
 
   /**
@@ -235,6 +389,289 @@ export class AgentClient {
         },
         params
       );
+    },
+  };
+
+  /**
+   * Account explorer – read-only access to Stellar account data.
+   *
+   * These methods query the Horizon API and do NOT require a private key.
+   * They work on both testnet and mainnet.
+   */
+  public account = {
+    /**
+     * Get comprehensive account information: balances, signers, thresholds, flags.
+     *
+     * @param publicKey - The Stellar G-address to query (defaults to configured publicKey)
+     */
+    getInfo: async (publicKey?: string): Promise<AccountInfo> => {
+      const key = publicKey ?? this.publicKey;
+      if (!key) throw new Error("No public key provided or configured");
+      return await getAccountInfo(key, {
+        network: this.network,
+        horizonUrl: this.rpcUrl,
+      });
+    },
+
+    /**
+     * Get account balance summary.
+     *
+     * @param publicKey - The Stellar G-address to query (defaults to configured publicKey)
+     */
+    getBalances: async (publicKey?: string): Promise<AccountBalance[]> => {
+      const key = publicKey ?? this.publicKey;
+      if (!key) throw new Error("No public key provided or configured");
+      return await getBalances(key, {
+        network: this.network,
+        horizonUrl: this.rpcUrl,
+      });
+    },
+
+    /**
+     * Get recent transaction history.
+     *
+     * @param publicKey - The Stellar G-address (defaults to configured publicKey)
+     * @param limit     - Max transactions to return (1–50, default 10)
+     * @param order     - 'desc' (newest first) or 'asc' (oldest first)
+     */
+    getTransactions: async (
+      publicKey?: string,
+      limit: number = 10,
+      order: "asc" | "desc" = "desc"
+    ): Promise<TransactionRecord[]> => {
+      const key = publicKey ?? this.publicKey;
+      if (!key) throw new Error("No public key provided or configured");
+      return await getTransactionHistory(key, {
+        network: this.network,
+        horizonUrl: this.rpcUrl,
+      }, limit, order);
+    },
+
+    /**
+     * Get recent operation history.
+     *
+     * @param publicKey - The Stellar G-address (defaults to configured publicKey)
+     * @param limit     - Max operations to return (1–50, default 10)
+     * @param order     - 'desc' (newest first) or 'asc' (oldest first)
+     */
+    getOperations: async (
+      publicKey?: string,
+      limit: number = 10,
+      order: "asc" | "desc" = "desc"
+    ): Promise<OperationRecord[]> => {
+      const key = publicKey ?? this.publicKey;
+      if (!key) throw new Error("No public key provided or configured");
+      return await getOperationHistory(key, {
+        network: this.network,
+        horizonUrl: this.rpcUrl,
+      }, limit, order);
+    },
+
+    /**
+     * Fund a testnet account using Stellar Friendbot.
+     * Only works on testnet. Creates and funds the account with 10,000 test XLM.
+     *
+     * @param publicKey - The Stellar G-address to fund (defaults to configured publicKey)
+     */
+    fundTestnet: async (
+      publicKey?: string
+    ): Promise<{ success: boolean; message: string }> => {
+      if (this.network !== "testnet") {
+        throw new Error(
+          "Friendbot funding is only available on testnet. " +
+          "Initialize AgentClient with network: 'testnet' to use this method."
+        );
+      }
+      const key = publicKey ?? this.publicKey;
+      if (!key) throw new Error("No public key provided or configured");
+      return await fundTestnetAccount(key);
+    },
+  };
+
+  /**
+   * Asset & market data explorer – read-only access to Stellar asset information.
+   *
+   * These methods query the Horizon API and do NOT require a private key.
+   * They work on both testnet and mainnet.
+   */
+  public asset = {
+    /**
+     * Look up details about a Stellar asset.
+     * Returns metadata including trust count, circulating supply, and issuer flags.
+     *
+     * @param assetCode   - The asset code (e.g. "USDC")
+     * @param assetIssuer - The issuer's public key
+     */
+    getDetails: async (
+      assetCode: string,
+      assetIssuer: string
+    ): Promise<AssetDetails[]> => {
+      return await getAssetDetails(assetCode, assetIssuer, {
+        network: this.network,
+        horizonUrl: this.rpcUrl,
+      });
+    },
+
+    /**
+     * Fetch the current SDEX orderbook for a trading pair.
+     *
+     * @param baseAsset    - The base asset (e.g. { type: "native" } or { code: "USDC", issuer: "G..." })
+     * @param counterAsset - The counter asset
+     * @param limit        - Number of entries per side (1–200, default 10)
+     */
+    getOrderbook: async (
+      baseAsset: AssetStellarAssetInput,
+      counterAsset: AssetStellarAssetInput,
+      limit: number = 10
+    ): Promise<OrderbookSummary> => {
+      return await getOrderbook(baseAsset, counterAsset, {
+        network: this.network,
+        horizonUrl: this.rpcUrl,
+      }, limit);
+    },
+
+    /**
+     * Fetch recent trades for a trading pair on the SDEX.
+     *
+     * @param baseAsset    - The base asset
+     * @param counterAsset - The counter asset
+     * @param limit        - Max trades to return (1–50, default 10)
+     * @param order        - 'desc' (newest first) or 'asc' (oldest first)
+     */
+    getTrades: async (
+      baseAsset: AssetStellarAssetInput,
+      counterAsset: AssetStellarAssetInput,
+      limit: number = 10,
+      order: "asc" | "desc" = "desc"
+    ): Promise<TradeRecord[]> => {
+      return await getTrades(baseAsset, counterAsset, {
+        network: this.network,
+        horizonUrl: this.rpcUrl,
+      }, limit, order);
+    },
+  };
+
+  /**
+   * Staking operations on Stellar Soroban.
+   *
+   * These methods interact with a staking smart contract.
+   * They require STELLAR_PRIVATE_KEY to be set for transaction signing.
+   */
+  public staking = {
+    /**
+     * Initialize a staking contract with a token address and reward rate.
+     *
+     * @param tokenAddress - The Soroban token contract address
+     * @param rewardRate   - The reward rate for staking
+     * @param contractAddress - Optional custom staking contract address
+     */
+    initialize: async (params: {
+      tokenAddress: string;
+      rewardRate: number;
+      contractAddress?: string;
+    }): Promise<string> => {
+      return await stakingInitialize(
+        this.publicKey,
+        params.tokenAddress,
+        params.rewardRate,
+        { network: this.network, rpcUrl: this.getSorobanRpcUrl(), contractAddress: params.contractAddress }
+      );
+    },
+
+    /**
+     * Stake tokens in the staking contract.
+     *
+     * @param amount - The amount to stake
+     * @param contractAddress - Optional custom staking contract address
+     */
+    stake: async (params: {
+      amount: number;
+      contractAddress?: string;
+    }): Promise<string> => {
+      return await stakingStake(
+        this.publicKey,
+        params.amount,
+        { network: this.network, rpcUrl: this.getSorobanRpcUrl(), contractAddress: params.contractAddress }
+      );
+    },
+
+    /**
+     * Unstake tokens from the staking contract.
+     *
+     * @param amount - The amount to unstake
+     * @param contractAddress - Optional custom staking contract address
+     */
+    unstake: async (params: {
+      amount: number;
+      contractAddress?: string;
+    }): Promise<string> => {
+      return await stakingUnstake(
+        this.publicKey,
+        params.amount,
+        { network: this.network, rpcUrl: this.getSorobanRpcUrl(), contractAddress: params.contractAddress }
+      );
+    },
+
+    /**
+     * Claim staking rewards.
+     *
+     * @param contractAddress - Optional custom staking contract address
+     */
+    claimRewards: async (params?: {
+      contractAddress?: string;
+    }): Promise<string> => {
+      return await stakingClaimRewards(
+        this.publicKey,
+        { network: this.network, rpcUrl: this.getSorobanRpcUrl(), contractAddress: params?.contractAddress }
+      );
+    },
+
+    /**
+     * Get the staked amount for a specific user.
+     *
+     * @param userAddress - The Stellar address to check stake for
+     * @param contractAddress - Optional custom staking contract address
+     */
+    getStake: async (params: {
+      userAddress: string;
+      contractAddress?: string;
+    }): Promise<any> => {
+      return await stakingGetStake(
+        this.publicKey,
+        params.userAddress,
+        { network: this.network, rpcUrl: this.getSorobanRpcUrl(), contractAddress: params.contractAddress }
+      );
+    },
+  };
+
+  /**
+   * Claimable balance operations.
+   *
+   * Discover and claim pending assets (claimable balances) on the Stellar network.
+   */
+  public claims = {
+    /**
+     * List all pending claimable balances for the configured account.
+     *
+     * @param publicKey - Optional public key to query (defaults to configured publicKey)
+     */
+    list: async (publicKey?: string): Promise<Array<{ id: string; asset: string; amount: string; sponsor: string }>> => {
+      const key = publicKey ?? this.publicKey;
+      if (!key) throw new Error("No public key provided or configured");
+      return await listClaimableBalances(key);
+    },
+
+    /**
+     * Build a claim transaction for one or all claimable balances.
+     * Returns an unsigned transaction that needs to be signed before submission.
+     *
+     * @param balanceId - Optional specific balance ID to claim. If omitted, claims all.
+     * @param publicKey - Optional public key (defaults to configured publicKey)
+     */
+    claim: async (params?: { balanceId?: string; publicKey?: string }) => {
+      const key = params?.publicKey ?? this.publicKey;
+      if (!key) throw new Error("No public key provided or configured");
+      return await claimBalance(key, params?.balanceId);
     },
   };
 
@@ -526,5 +963,15 @@ export class AgentClient {
     } catch (error) {
       throw new Error(`Failed to lock issuer account: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /**
+   * Get the Soroban RPC URL for the current network.
+   * Soroban uses a different endpoint than Horizon.
+   */
+  private getSorobanRpcUrl(): string {
+    return this.network === "mainnet"
+      ? "https://soroban-mainnet.stellar.org"
+      : "https://soroban-testnet.stellar.org";
   }
 }

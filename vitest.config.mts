@@ -9,7 +9,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['tools/**/*.ts', 'lib/**/*.ts', 'utils/**/*.ts'],
+      include: ['agent.ts', 'tools/**/*.ts', 'lib/**/*.ts', 'utils/**/*.ts'],
       exclude: [
         'node_modules',
         'dist',

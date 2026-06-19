@@ -338,6 +338,56 @@ const shareId = await agent.lp.getShareId();
   - **Classic best-route swaps (`agent.dex.*`):** Require `allowMainnet: true` in `AgentClient`
   - **Soroban single-pool swap/LP (`agent.swap()`, `agent.lp.*`):** Still wired to testnet-only contract settings
   - **Bridge operations:** Require BOTH `allowMainnet: true` AND `ALLOW_MAINNET_BRIDGE=true` in `.env`
+---
+
+## 🔍 Account Utilities
+
+AgentKit provides built-in tools for querying Stellar account balances and account details.
+
+### Get Account Balance
+
+```typescript
+import { stellarTools } from "stellartools";
+
+// Example input
+{
+  publicKey: "GBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  network: "testnet"
+}
+```
+
+Returns balances for XLM and all trustline assets associated with the account.
+
+### Get Account Information
+
+```typescript
+import { stellarTools } from "stellartools";
+
+// Example input
+{
+  publicKey: "GBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  network: "testnet"
+}
+```
+
+Returns account metadata including:
+
+* Sequence number
+* Thresholds
+* Signers
+* Account flags
+* Other Horizon account details
+
+### Supported Networks
+
+Both account utilities support:
+
+* `testnet`
+* `mainnet`
+
+The default network is `testnet`.
+
+
 
 ---
 
